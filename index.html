@@ -6,21 +6,32 @@
 		<title>WebGPU Game of Life</title>
 	</head>
 	<body>
-		<canvas width="512" height="512"></canvas>
+		<canvas id="myCanvas" width={window.innerWidth}  height={}></canvas>
 		<script type="module">
 
-			const GRID_SIZE = 64;
+			const GRID_SIZE = 128;
+			const GRID_WIDTH = Math.floor(window.innerWidth / 3);
+			const GRID_HEIGHT = Math.floor(window.innerHeight / 3);
 			const canvas = document.querySelector("canvas");
+
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight;
+
+			const ratio = window.innerWidth / window.innerHeight;
+			console.log(ratio);
+
 
 			// WebGPU code here
 			if(!navigator.gpu)
 			{
+				canvas.prepend("Your browser does not support WebGPU :( try using desktop Chrome.")
 				throw new Error("WebGPU not supported on this browser.");
 			}
 
 			const adapter = await navigator.gpu.requestAdapter();
 			if(!adapter)
 			{
+				canvas.prepend("Your browser does not support WebGPU :( try using desktop Chrome.")
 				throw new Error("No appropriate GPUAdapter found.");
 			}
 
@@ -56,7 +67,7 @@
 
 
 			// Create a uniform buffer that describes the grid
-			const uniformArray = new Float32Array([GRID_SIZE, GRID_SIZE]);
+			const uniformArray = new Float32Array([GRID_WIDTH, GRID_HEIGHT]);
 			const uniformBuffer = device.createBuffer({
 				label: "Grid Uniforms",
 				size: uniformArray.byteLength,
@@ -65,7 +76,7 @@
 			device.queue.writeBuffer(uniformBuffer, 0, uniformArray);
 
 			// represents the active state of each cell
-			const cellStateArray = new Uint32Array(GRID_SIZE * GRID_SIZE);
+			const cellStateArray = new Uint32Array(GRID_WIDTH * GRID_HEIGHT);
 			const cellStateStorage = [
 				device.createBuffer({
 					label: "Cell State A",
@@ -296,7 +307,7 @@
 				computePass.setPipeline(simulationPipeline);
 				computePass.setBindGroup(0, bindGroups[step % 2]);
 
-				const workGroupCount = Math.ceil(GRID_SIZE / WORKGROUP_SIZE);
+				const workGroupCount = Math.ceil(Math.max(GRID_WIDTH, GRID_HEIGHT) / WORKGROUP_SIZE);
 				computePass.dispatchWorkgroups(workGroupCount, workGroupCount);
 
 				computePass.end();
@@ -317,7 +328,7 @@
 
 				pass.setBindGroup(0, bindGroups[step % 2]);
 
-				pass.draw(vertices.length / 2, GRID_SIZE * GRID_SIZE);
+				pass.draw(vertices.length / 2, GRID_WIDTH * GRID_HEIGHT);
 
 				pass.end();
 
