@@ -10,8 +10,9 @@
 		<script type="module">
 
 			const GRID_SIZE = 128;
-			const GRID_WIDTH = Math.floor(window.innerWidth / 3);
-			const GRID_HEIGHT = Math.floor(window.innerHeight / 3);
+			const CELL_SCALE = 4;
+			const GRID_WIDTH = Math.floor(window.innerWidth / CELL_SCALE);
+			const GRID_HEIGHT = Math.floor(window.innerHeight / CELL_SCALE);
 			const canvas = document.querySelector("canvas");
 
 			canvas.width = window.innerWidth;
@@ -89,7 +90,7 @@
 					usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
 				}),
 			];
-			// mark every third cell of the grid as active
+			// mark every third cell of the grid randomly
 			for(let i = 0; i < cellStateArray.length; i+= 3)
 			{
 				cellStateArray[i] = Math.random() > 0.6 ? 1 : 0;
@@ -178,7 +179,7 @@
 					}
 
 					@compute @workgroup_size(${WORKGROUP_SIZE}, ${WORKGROUP_SIZE})
-					fn computeMain(@builtin(global_invocation_id) cell: vec3u) {\
+					fn computeMain(@builtin(global_invocation_id) cell: vec3u) {
 
 						let activeNeighbors = 	cellActive(cell.x+1, cell.y+1) + 
 												cellActive(cell.x+1, cell.y) + 
@@ -298,10 +299,19 @@
 				}
 			});
 
+			function getMousePos(canvas, evt) {
+				var rect = canvas.getBoundingClientRect();
+				return {
+					x: evt.clientX - rect.left,
+					y: evt.clientY - rect.top
+				};
+			}
+
 			function updateGrid() {
 				const encoder = device.createCommandEncoder();1
-				
 				const computePass = encoder.beginComputePass();
+
+				
 
 				// compute work here
 				computePass.setPipeline(simulationPipeline);
@@ -336,6 +346,35 @@
 			}
 
 			setInterval(updateGrid, UPDATE_INTERVAL);
+
+
+			let drawing = false;
+			let x = 0;
+			let y = 0;
+			canvas.addEventListener('mousedown', (e) => {
+				drawing = true;
+				x = Math.floor(e.offsetX / CELL_SCALE);
+				y = Math.floor(e.offsetY / CELL_SCALE);
+
+				console.log("x: " + x);
+				console.log("y: " + y);
+			});
+
+			canvas.addEventListener('mouseup', (e) => {
+				drawing = false;
+			});
+
+			canvas.addEventListener('mousemove', (e) => {
+				if(drawing)
+				{
+					x = Math.floor(e.offsetX / CELL_SCALE);
+					y = GRID_HEIGHT - Math.floor(e.offsetY / CELL_SCALE);
+
+					cellStateArray[y * GRID_WIDTH + x] = 1;
+					device.queue.writeBuffer(cellStateStorage[1], 0, cellStateArray);
+				}
+			});
+
 
 		</script>
 	</body>
